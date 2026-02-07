@@ -7,14 +7,15 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_openai import ChatOpenAI
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 # 1. Check API Key - warn if not set but don't fail immediately
 # In AWS App Runner, this will be injected by AWS Secrets Manager
-if "OPENAI_API_KEY" not in os.environ:
-    print("⚠️  WARNING: OPENAI_API_KEY environment variable not set. Chat functionality will fail.")
+if "XAI_API_KEY" not in os.environ:
+    print("⚠️  WARNING: XAI_API_KEY environment variable not set. Chat functionality will fail.")
 else:
-    print("✅ OPENAI_API_KEY is set")
+    print("✅ XAI_API_KEY is set")
 
 # --- Lazy loading: Initialize RAG components on first use ---
 rag_chain = None
@@ -23,7 +24,7 @@ def get_rag_chain():
     global rag_chain
     if rag_chain is None:
         print("Loading RAG model and vector store...")
-        embeddings = OpenAIEmbeddings()
+        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         vectorstore = FAISS.load_local(
             "faiss_index", 
             embeddings, 
@@ -44,7 +45,12 @@ Helpful Answer: """
         prompt = ChatPromptTemplate.from_template(template)
         
         # LLM model
-        llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+        llm = ChatOpenAI(
+            model_name="grok-4-1-fast-non-reasoning",
+            temperature=0,
+            openai_api_key=os.environ.get("XAI_API_KEY"),
+            openai_api_base="https://api.x.ai/v1",
+        )
         
         # RAG Chain using LCEL
         def format_docs(docs):
